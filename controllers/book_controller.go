@@ -1,13 +1,16 @@
 package controllers
 
 import (
+	"github.com/go-redis/redis/v8"
 	"book-catalogue/configs"
 	"book-catalogue/models"
 	"book-catalogue/responses"
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
+	"encoding/json"
 
 	"github.com/go-playground/validator/v10"
 
@@ -17,35 +20,97 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+var redisClient *redis.Client
+
 var bookCollection *mongo.Collection = configs.GetCollection(configs.DB, "books")
 var validate = validator.New()
 
-func GetAllBooks(c *fiber.Ctx) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	var books []models.Book
-	defer cancel()
+func InitializeRedisClient() *redis.Client {
+	redisServer := os.Getenv("REDISSERVER")
+	redisPassword := os.Getenv("REDISPASSWORD")
 
-	results, err := bookCollection.Find(ctx, bson.M{})
+    client := redis.NewClient(&redis.Options{
+		Addr:     redisServer + ":6379",
+		Password: redisPassword,
+		DB:       0,
+    })
 
-	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(responses.BookResponse{Status: http.StatusInternalServerError, Message: "error", Data: &fiber.Map{"data": err.Error()}})
-	}
+    // Check if the Redis client is connected successfully
+    pong, err := client.Ping(context.Background()).Result()
+    if err != nil {
+        panic(fmt.Sprintf("Failed to connect to Redis: %v", err))
+    }
+    fmt.Println("Connected to Redis:", pong)
 
-	//reading from the db in an optimal way
-	defer results.Close(ctx)
-	for results.Next(ctx) {
-		var singleBook models.Book
-		if err = results.Decode(&singleBook); err != nil {
-			return c.Status(http.StatusInternalServerError).JSON(responses.BookResponse{Status: http.StatusInternalServerError, Message: "error", Data: &fiber.Map{"data": err.Error()}})
-		}
-
-		books = append(books, singleBook)
-	}
-
-	return c.Status(http.StatusOK).JSON(
-		responses.BookResponse{Status: http.StatusOK, Message: "success", Data: &fiber.Map{"data": books}},
-	)
+    return client
 }
+
+func GetAllBooks(c *fiber.Ctx) error {
+	// Initialize redisClient if it's nil
+    if redisClient == nil {
+        redisClient = InitializeRedisClient()
+    }
+
+    // Attempt to retrieve data from Redis cache
+    cacheResult, err := redisClient.Get(context.Background(), "all_books").Result()
+    if err == nil {
+        // If cache hit, return the cached data
+        var books []models.Book
+        if err := json.Unmarshal([]byte(cacheResult), &books); err != nil {
+            return c.Status(http.StatusInternalServerError).JSON(responses.BookResponse{
+                Status:  http.StatusInternalServerError,
+                Message: "error",
+                Data:    &fiber.Map{"data": err.Error()},
+            })
+        }
+    return c.Status(http.StatusOK).JSON(responses.BookResponse{
+        Status:  http.StatusOK,
+        Message: "success (from database)",
+        Data:    &fiber.Map{"data": books},
+    })
+
+    }
+
+    // Cache miss, query the database
+    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
+
+    results, err := bookCollection.Find(ctx, bson.M{})
+    if err != nil {
+        return c.Status(http.StatusInternalServerError).JSON(responses.BookResponse{
+            Status:  http.StatusInternalServerError,
+            Message: "error",
+            Data:    &fiber.Map{"data": err.Error()},
+        })
+    }
+
+    // Reading from the db in an optimal way
+    var books []models.Book
+    defer results.Close(ctx)
+    for results.Next(ctx) {
+        var singleBook models.Book
+        if err := results.Decode(&singleBook); err != nil {
+            return c.Status(http.StatusInternalServerError).JSON(responses.BookResponse{
+                Status:  http.StatusInternalServerError,
+                Message: "error",
+                Data:    &fiber.Map{"data": err.Error()},
+            })
+        }
+
+        books = append(books, singleBook)
+    }
+
+    // Store the result in Redis for future caching
+    cacheResultJSON, _ := json.Marshal(books)
+    redisClient.Set(context.Background(), "all_books", cacheResultJSON, 10*time.Minute)
+
+    return c.Status(http.StatusOK).JSON(responses.BookResponse{
+        Status:  http.StatusOK,
+        Message: "success (from database)",
+        Data:    &fiber.Map{"data": books},
+    })
+}
+
 
 func CreateBook(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

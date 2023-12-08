@@ -5,8 +5,10 @@ import (
 	"book-catalogue/routes"
 	"log"
 
+
 	"github.com/gofiber/fiber/v2"
 )
+
 
 func main() {
 	app := fiber.New()
