@@ -1,3 +1,87 @@
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mongo-pv
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /data/db
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mongo-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mongodb
+spec:
+  serviceName: mongodb
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongodb
+  template:
+    metadata:
+      labels:
+        app: mongodb
+    spec:
+      containers:
+        - name: mongodb
+          image: mongo:latest
+          ports:
+            - containerPort: 27017
+          volumeMounts:
+            - name: mongodb-storage
+              mountPath: /data/db
+          env:
+            - name: MONGO_INITDB_ROOT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret
+                  key: mongodb-root-username
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret
+                  key: mongodb-root-password
+  volumeClaimTemplates:
+    - metadata:
+        name: mongodb-storage
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb-service
+spec:
+  selector:
+    app: mongodb
+  ports:
+    - protocol: TCP
+      port: 27017
+      targetPort: 27017
+
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -15,14 +99,14 @@ spec:
         app: redis
     spec:
       containers:
-      - name: redis
-        image: redis:latest
-        ports:
-        - containerPort: 6379
-        resources:
-          limits:
-            cpu: "500m"
-            memory: "500Mi"
+        - name: redis
+          image: redis:latest
+          ports:
+            - containerPort: 6379
+          resources:
+            limits:
+              cpu: 500m
+              memory: 500Mi
 
 ---
 apiVersion: v1
@@ -33,9 +117,9 @@ spec:
   selector:
     app: redis
   ports:
-  - protocol: TCP
-    port: 6379
-    targetPort: 6379
+    - protocol: TCP
+      port: 6379
+      targetPort: 6379
 
 ---
 apiVersion: apps/v1
@@ -57,7 +141,11 @@ spec:
       initContainers:
         - name: init-redis-check
           image: redis:latest
-          command: ["sh", "-c", "until redis-cli -h redis-service -p 6379 ping; do echo 'Waiting for Redis...'; sleep 2; done;"]
+          command:
+            - sh
+            - -c
+            - until redis-cli -h redis-service -p 6379 ping; do echo 'Waiting
+              for Redis...'; sleep 2; done;
       containers:
         - name: book-catalogue
           image: anonymousliem/bookcatalogue:v3.0
@@ -65,17 +153,17 @@ spec:
             - containerPort: 6000
           env:
             - name: REDIS_SERVER
-              value: "redis-service.default.svc.cluster.local"
+              value: redis-service.default.svc.cluster.local
           envFrom:
             - secretRef:
                 name: book-catalogue-secret
           resources:
             limits:
-              cpu: "1000m"  
-              memory: "1000Mi"  
+              cpu: 1000m
+              memory: 1000Mi
             requests:
-              cpu: "1000m" 
-              memory: "1000Mi" 
+              cpu: 1000m
+              memory: 1000Mi
           livenessProbe:
             httpGet:
               path: /
