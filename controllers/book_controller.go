@@ -26,12 +26,10 @@ var bookCollection *mongo.Collection = configs.GetCollection(configs.DB, "books"
 var validate = validator.New()
 
 func InitializeRedisClient() *redis.Client {
-	redisServer := os.Getenv("REDISSERVER")
-	redisPassword := os.Getenv("REDISPASSWORD")
+	redisServer := os.Getenv("REDIS_SERVER")
 
     client := redis.NewClient(&redis.Options{
 		Addr:     redisServer + ":6379",
-		Password: redisPassword,
 		DB:       0,
     })
 

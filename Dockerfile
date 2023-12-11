@@ -10,12 +10,6 @@ COPY . .
 # Download and install any required dependencies
 RUN go mod download
 
-# Install godotenv to load environment variables from .env
-RUN go get github.com/joho/godotenv
-
-# Copy .env file into the Docker image
-COPY .env .env
-
 # Build the Go application
 RUN go build -o main .
 
@@ -23,4 +17,4 @@ RUN go build -o main .
 EXPOSE 8080
 
 # Command to run the executable with godotenv and pass the connection string as an argument
-CMD ["./main", "-mongouri", "${MONGOURI}"]
+CMD ["./main"]

@@ -1,0 +1,156 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-deployment
+  labels:
+    app: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:latest
+        ports:
+        - containerPort: 6379
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "500Mi"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+spec:
+  selector:
+    app: redis
+  ports:
+  - protocol: TCP
+    port: 6379
+    targetPort: 6379
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: book-catalogue-deployment
+  labels:
+    name: book-catalogue
+spec:
+  selector:
+    matchLabels:
+      app: book-catalogue
+  template:
+    metadata:
+      name: book-catalogue
+      labels:
+        app: book-catalogue
+    spec:
+      initContainers:
+        - name: init-redis-check
+          image: redis:latest
+          command: ["sh", "-c", "until redis-cli -h redis-service -p 6379 ping; do echo 'Waiting for Redis...'; sleep 2; done;"]
+      containers:
+        - name: book-catalogue
+          image: anonymousliem/bookcatalogue:v3.0
+          ports:
+            - containerPort: 6000
+          env:
+            - name: REDIS_SERVER
+              value: "redis-service.default.svc.cluster.local"
+          envFrom:
+            - secretRef:
+                name: book-catalogue-secret
+          resources:
+            limits:
+              cpu: "1000m"  
+              memory: "1000Mi"  
+            requests:
+              cpu: "1000m" 
+              memory: "1000Mi" 
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 6000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 2
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 6000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 2
+            successThreshold: 1
+            failureThreshold: 3
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: book-catalogue-service
+spec:
+  type: NodePort
+  selector:
+    app: book-catalogue
+  ports:
+    - port: 80
+      targetPort: 6000
+      nodePort: 30001
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: book-catalogue-hpa
+spec:
+  minReplicas: 1
+  maxReplicas: 2
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: book-catalogue-deployment
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 60
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: book-catalogue-ingress
+  labels:
+    name: book-catalogue-ingress
+spec:
+  rules:
+    - host: bookcatalogue.anonymousliem.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: book-catalogue-service
+                port:
+                  number: 80

@@ -3,6 +3,7 @@ package main
 import (
 	"book-catalogue/configs"
 	"book-catalogue/routes"
+	"book-catalogue/controllers"
 	"log"
 
 
@@ -13,6 +14,7 @@ import (
 func main() {
 	app := fiber.New()
 	configs.ConnectDB()
+	controllers.InitializeRedisClient()
 	routes.BookRoute(app)
 
 	app.Get("/", func(c *fiber.Ctx) error {
