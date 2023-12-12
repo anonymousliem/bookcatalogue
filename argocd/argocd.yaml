@@ -12,7 +12,7 @@ spec:
     path: k8s/v3
   destination: 
     server: https://kubernetes.default.svc
-    namespace: myapp
+    namespace: default
 
   syncPolicy:
     syncOptions:
