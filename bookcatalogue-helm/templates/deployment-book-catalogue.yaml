@@ -1,0 +1,51 @@
+# templates/deployment-book-catalogue.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.bookCatalogue.deployment.name }}
+  labels:
+    app: book-catalogue
+spec:
+  replicas: {{ .Values.bookCatalogue.deployment.replicas }}
+  selector:
+    matchLabels:
+      app: book-catalogue
+  template:
+    metadata:
+      name: {{ .Values.bookCatalogue.deployment.name }}
+      labels:
+        app: book-catalogue
+    spec:
+      containers:
+        - name: book-catalogue
+          image: {{ .Values.bookCatalogue.deployment.image }}
+          ports:
+            - containerPort: {{ .Values.bookCatalogue.deployment.containerPort }}
+          env:
+            - name: REDIS_SERVER
+              value: {{ .Values.bookCatalogue.deployment.redisServiceHost }}
+          envFrom:
+            - secretRef:
+                name: book-catalogue-secret
+          resources:
+            limits:
+              cpu: {{ .Values.bookCatalogue.deployment.cpuLimit }}
+              memory: {{ .Values.bookCatalogue.deployment.memoryLimit }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.bookCatalogue.deployment.livenessProbePath }}
+              port: {{ .Values.bookCatalogue.deployment.containerPort }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 2
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.bookCatalogue.deployment.readinessProbePath }}
+              port: {{ .Values.bookCatalogue.deployment.containerPort }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 2
+            successThreshold: 1
+            failureThreshold: 3

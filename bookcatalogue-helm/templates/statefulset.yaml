@@ -1,0 +1,44 @@
+# templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Values.mongo.statefulset.name }}
+spec:
+  serviceName: {{ .Values.mongo.statefulset.serviceName }}
+  replicas: {{ .Values.mongo.statefulset.replicas }}
+  selector:
+    matchLabels:
+      app: mongodb
+  template:
+    metadata:
+      labels:
+        app: mongodb
+    spec:
+      containers:
+        - name: mongodb
+          image: {{ .Values.mongo.statefulset.image }}
+          ports:
+            - containerPort: {{ .Values.mongo.statefulset.containerPort }}
+          volumeMounts:
+            - name: mongodb-storage
+              mountPath: /data/db
+          env:
+            - name: MONGO_INITDB_ROOT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret
+                  key: {{ .Values.mongo.statefulset.rootUsernameKey }}
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret
+                  key: {{ .Values.mongo.statefulset.rootPasswordKey }}
+  volumeClaimTemplates:
+    - metadata:
+        name: mongodb-storage
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi

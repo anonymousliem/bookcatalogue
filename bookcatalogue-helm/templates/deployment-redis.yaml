@@ -1,0 +1,26 @@
+# templates/deployment-redis.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.redis.deployment.name }}
+  labels:
+    app: redis
+spec:
+  replicas: {{ .Values.redis.deployment.replicas }}
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: {{ .Values.redis.deployment.image }}
+          ports:
+            - containerPort: {{ .Values.redis.deployment.containerPort }}
+          resources:
+            limits:
+              cpu: {{ .Values.redis.deployment.cpuLimit }}
+              memory: {{ .Values.redis.deployment.memoryLimit }}

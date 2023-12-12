@@ -1,0 +1,12 @@
+# templates/persistentvolume.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ .Values.mongo.pv.name }}
+spec:
+  capacity:
+    storage: {{ .Values.mongo.pv.storage }}
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /data/db

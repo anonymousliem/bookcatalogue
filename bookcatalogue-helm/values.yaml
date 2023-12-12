@@ -1,0 +1,70 @@
+# values.yaml
+mongo:
+  pv:
+    name: mongo-pv
+    storage: 5Gi
+  pvc:
+    name: mongo-pvc
+    storage: 1Gi
+  statefulset:
+    name: mongodb
+    serviceName: mongodb
+    replicas: 1
+    image: mongo:latest
+    containerPort: 27017
+    rootUsernameKey: mongodb-root-username
+    rootPasswordKey: mongodb-root-password
+
+redis:
+  deployment:
+    name: redis-deployment
+    serviceName: redis-service
+    replicas: 1
+    image: redis:latest
+    containerPort: 6379
+    cpuLimit: 500m
+    memoryLimit: 500Mi
+
+bookCatalogue:
+  deployment:
+    name: book-catalogue-deployment
+    serviceName: book-catalogue-service
+    replicas: 1
+    image: anonymousliem/bookcatalogue:v3.0
+    containerPort: 6000
+    cpuLimit: 1000m
+    memoryLimit: 1000Mi
+    redisServiceHost: redis-service.default.svc.cluster.local
+    redisPort: 6379
+    livenessProbePath: /
+    readinessProbePath: /
+
+service:
+  redis:
+    name: redis-service
+    port: 6379
+  mongodb:
+    name: mongodb-service
+    port: 27017
+  bookCatalogue:
+    name: book-catalogue-service
+    type: NodePort
+    port: 80
+    targetPort: 6000
+    nodePort: 30001
+
+autoscaling:
+  enabled: true
+  hpa:
+    name: book-catalogue-hpa
+    minReplicas: 1
+    maxReplicas: 2
+    cpuTargetUtilization: 60
+    memoryTargetUtilization: 60
+    scaleTargetRef: book-catalogue-deployment 
+
+ingress:
+  enabled: true
+  name: book-catalogue-ingress
+  host: bookcatalogue.anonymousliem.local
+  path: /

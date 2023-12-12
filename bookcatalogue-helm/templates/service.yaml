@@ -1,0 +1,39 @@
+# templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.service.redis.name }}
+spec:
+  selector:
+    app: redis
+  ports:
+    - protocol: TCP
+      port: {{ .Values.service.redis.port }}
+      targetPort: {{ .Values.service.redis.port }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.service.mongodb.name }}
+spec:
+  selector:
+    app: mongodb
+  ports:
+    - protocol: TCP
+      port: {{ .Values.service.mongodb.port }}
+      targetPort: {{ .Values.service.mongodb.port }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.service.bookCatalogue.name }}
+spec:
+  type: {{ .Values.service.bookCatalogue.type }}
+  selector:
+    app: book-catalogue
+  ports:
+    - port: {{ .Values.service.bookCatalogue.port }}
+      targetPort: {{ .Values.service.bookCatalogue.targetPort }}
+      nodePort: {{ .Values.service.bookCatalogue.nodePort }}
