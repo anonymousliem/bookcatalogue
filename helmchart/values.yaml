@@ -19,7 +19,7 @@ redis:
   deployment:
     name: redis-deployment
     serviceName: redis-service
-    replicas: 2
+    replicas: 1
     image: redis:latest
     containerPort: 6379
     cpuLimit: 500m
