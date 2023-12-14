@@ -10,6 +10,6 @@ entries:
       name: helmchart
       type: application
       urls:
-        - https://raw.githubusercontent.com/anonymousliem/bookcatalogue/main/helmchart/helmchart-0.1.0.tgz
+        - https://raw.githubusercontent.com/anonymousliem/bookcatalogue/main/helmchart/helmchart-0.1.1.tgz
       version: 0.1.1
 generated: 2023-12-13T12:40:48.1856749+07:00
