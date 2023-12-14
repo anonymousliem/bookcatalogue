@@ -1,0 +1,16 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: bookcatalogue
+  namespace: argocd
+spec:
+  project: default
+  source:
+    chart: helmchart
+    repoURL: https://raw.githubusercontent.com/anonymousliem/bookcatalogue/main/helmchart
+    targetRevision: 0.1.0
+    helm:
+      releaseName: bookcatalogue
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: default
