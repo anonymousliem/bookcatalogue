@@ -11,6 +11,8 @@ spec:
     targetRevision: 0.1.0
     helm:
       releaseName: bookcatalogue
+      valueFiles:
+      - values.yaml
   destination:
     server: "https://kubernetes.default.svc"
     namespace: default
